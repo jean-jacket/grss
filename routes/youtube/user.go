@@ -22,13 +22,9 @@ var UserRoute = registry.Route{
 func userHandler(c *gin.Context) (*feed.Data, error) {
 	username := c.Param("username")
 
-	// Parse embed parameter (default: true)
-	embedParam := c.Query("embed")
-	embed := embedParam == "" || embedParam == "true"
-
-	// Parse filterShorts parameter (default: true)
-	filterShortsParam := c.Query("filterShorts")
-	filterShorts := filterShortsParam == "" || filterShortsParam == "true"
+	// Parse parameters with defaults
+	embed := parseBoolParam(c, "embed", true)
+	filterShorts := parseBoolParam(c, "filterShorts", true)
 
 	// Call API with fallback logic
 	return callAPI(

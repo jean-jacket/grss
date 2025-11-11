@@ -22,9 +22,8 @@ var PlaylistRoute = registry.Route{
 func playlistHandler(c *gin.Context) (*feed.Data, error) {
 	playlistID := c.Param("id")
 
-	// Parse embed parameter (default: true)
-	embedParam := c.Query("embed")
-	embed := embedParam == "" || embedParam == "true"
+	// Parse parameters with defaults
+	embed := parseBoolParam(c, "embed", true)
 
 	// Call API with fallback logic
 	return callAPI(

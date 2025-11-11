@@ -29,15 +29,9 @@ func channelHandler(c *gin.Context) (*feed.Data, error) {
 		return nil, fmt.Errorf("invalid YouTube channel ID: %s. Channel IDs must start with UC and be 24 characters long. You may want to use /youtube/user/:username instead", channelID)
 	}
 
-	// Parse embed parameter (default: true)
-	// If embed parameter is present (any value), disable embedding
-	embedParam := c.Query("embed")
-	embed := embedParam == "" || embedParam == "true"
-
-	// Parse filterShorts parameter (default: true)
-	// Only false if explicitly set to "false"
-	filterShortsParam := c.Query("filterShorts")
-	filterShorts := filterShortsParam == "" || filterShortsParam == "true"
+	// Parse parameters with defaults
+	embed := parseBoolParam(c, "embed", true)
+	filterShorts := parseBoolParam(c, "filterShorts", true)
 
 	// Call API with fallback logic
 	return callAPI(

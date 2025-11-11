@@ -5,7 +5,37 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
+
+// parseBoolParam parses a boolean query parameter with a default value
+// Supports: true, false, 1, 0, yes, no (case-insensitive)
+// Returns defaultValue if parameter is not provided
+func parseBoolParam(c *gin.Context, param string, defaultValue bool) bool {
+	value := c.Query(param)
+
+	// If not provided, return default
+	if value == "" {
+		return defaultValue
+	}
+
+	// Normalize to lowercase
+	value = strings.ToLower(strings.TrimSpace(value))
+
+	// Check for true values
+	if value == "true" || value == "1" || value == "yes" {
+		return true
+	}
+
+	// Check for false values
+	if value == "false" || value == "0" || value == "no" {
+		return false
+	}
+
+	// Default to false for any other value (safety)
+	return false
+}
 
 // getThumbnail returns the best quality thumbnail from a ThumbnailSet
 // Priority: maxres > standard > high > medium > default
