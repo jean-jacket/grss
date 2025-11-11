@@ -12,7 +12,7 @@ var UserRoute = registry.Route{
 	Name:        "User/Handle Videos",
 	Maintainers: []string{"grss"},
 	Example:     "/youtube/user/@JFlaMusic",
-	Description: "Get videos from a YouTube channel by username or handle (e.g., @username). Supports optional parameters: embed (default: true), filterShorts (default: true)",
+	Description: "Get videos from a YouTube channel by username or handle (e.g., @username). Supports optional parameters: embed (default: false), filterShorts (default: true)",
 	Parameters: map[string]interface{}{
 		"username": "YouTube username or handle (with @ prefix for handles)",
 	},
@@ -23,8 +23,8 @@ func userHandler(c *gin.Context) (*feed.Data, error) {
 	username := c.Param("username")
 
 	// Parse parameters with defaults
-	embed := parseBoolParam(c, "embed", true)
-	filterShorts := parseBoolParam(c, "filterShorts", true)
+	embed := parseBoolParam(c, "embed", false)           // Default: thumbnails only
+	filterShorts := parseBoolParam(c, "filterShorts", true) // Default: filter shorts
 
 	// Call API with fallback logic
 	return callAPI(

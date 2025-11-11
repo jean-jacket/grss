@@ -14,7 +14,7 @@ var ChannelRoute = registry.Route{
 	Name:        "Channel Videos",
 	Maintainers: []string{"grss"},
 	Example:     "/youtube/channel/UCDwDMPOZfxVV0x_dz0eQ8KQ",
-	Description: "Get videos from a YouTube channel by channel ID. Supports optional parameters: embed (default: true), filterShorts (default: true)",
+	Description: "Get videos from a YouTube channel by channel ID. Supports optional parameters: embed (default: false), filterShorts (default: true)",
 	Parameters: map[string]interface{}{
 		"id": "YouTube channel ID (must start with UC)",
 	},
@@ -30,8 +30,8 @@ func channelHandler(c *gin.Context) (*feed.Data, error) {
 	}
 
 	// Parse parameters with defaults
-	embed := parseBoolParam(c, "embed", true)
-	filterShorts := parseBoolParam(c, "filterShorts", true)
+	embed := parseBoolParam(c, "embed", false)           // Default: thumbnails only
+	filterShorts := parseBoolParam(c, "filterShorts", true) // Default: filter shorts
 
 	// Call API with fallback logic
 	return callAPI(
