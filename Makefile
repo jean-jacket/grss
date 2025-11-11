@@ -2,11 +2,11 @@
 
 # Build the application
 build:
-	go build -o bin/rsshub cmd/rsshub/main.go
+	go build -o bin/grss cmd/grss/main.go
 
 # Run the application
 run: build
-	./bin/rsshub
+	./bin/grss
 
 # Install dependencies
 install:
@@ -32,11 +32,11 @@ clean:
 
 # Build Docker image
 docker-build:
-	docker build -t rsshub:latest .
+	docker build -t grss:latest .
 
 # Run Docker container
 docker-run:
-	docker run -p 1200:1200 rsshub:latest
+	docker run -p 1200:1200 grss:latest
 
 # Run with docker-compose
 docker-compose-up:

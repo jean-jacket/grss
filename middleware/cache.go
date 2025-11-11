@@ -29,13 +29,13 @@ func Cache(c cache.Cache) gin.HandlerFunc {
 		format := ctx.DefaultQuery("format", "rss")
 		limit := ctx.Query("limit")
 		keyData := fmt.Sprintf("%s:%s:%s", path, format, limit)
-		cacheKey := fmt.Sprintf("rsshub:koa-redis-cache:%x", sha256.Sum256([]byte(keyData)))
+		cacheKey := fmt.Sprintf("grss:cache:%x", sha256.Sum256([]byte(keyData)))
 
 		// Try to get from cache
 		cached, err := c.Get(ctx.Request.Context(), cacheKey)
 		if err == nil && cached != "" {
 			// Cache hit
-			ctx.Header("RSSHub-Cache-Status", "HIT")
+			ctx.Header("GRSS-Cache-Status", "HIT")
 			ctx.Header("Content-Type", getContentType(format))
 			ctx.String(http.StatusOK, cached)
 			ctx.Abort()
@@ -75,7 +75,7 @@ func Cache(c cache.Cache) gin.HandlerFunc {
 		if err == nil && result != nil {
 			response := result.(string)
 			if response != "" && ctx.Writer.Status() == http.StatusOK {
-				ctx.Header("RSSHub-Cache-Status", "MISS")
+				ctx.Header("GRSS-Cache-Status", "MISS")
 			}
 		}
 	}

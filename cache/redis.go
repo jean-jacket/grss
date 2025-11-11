@@ -38,7 +38,7 @@ func NewRedisCache(url string) (*RedisCache, error) {
 // Get retrieves a value from Redis cache
 func (r *RedisCache) Get(ctx context.Context, key string) (string, error) {
 	// Check TTL tracking key
-	ttlKey := "rsshub:cacheTtl:" + key
+	ttlKey := "grss:cacheTtl:" + key
 	ttl, err := r.client.TTL(ctx, ttlKey).Result()
 	if err != nil || ttl <= 0 {
 		return "", errors.New("cache miss or expired")
@@ -64,7 +64,7 @@ func (r *RedisCache) Set(ctx context.Context, key string, value string, ttl time
 	}
 
 	// Store TTL tracking key
-	ttlKey := "rsshub:cacheTtl:" + key
+	ttlKey := "grss:cacheTtl:" + key
 	if err := r.client.Set(ctx, ttlKey, "1", ttl).Err(); err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func (r *RedisCache) Set(ctx context.Context, key string, value string, ttl time
 // Delete removes a value from Redis cache
 func (r *RedisCache) Delete(ctx context.Context, key string) error {
 	// Delete both the data key and TTL tracking key
-	ttlKey := "rsshub:cacheTtl:" + key
+	ttlKey := "grss:cacheTtl:" + key
 	pipe := r.client.Pipeline()
 	pipe.Del(ctx, key)
 	pipe.Del(ctx, ttlKey)

@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build binary
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o rsshub cmd/rsshub/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o grss cmd/grss/main.go
 
 # Runtime stage
 FROM alpine:latest
@@ -24,7 +24,7 @@ RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /root/
 
 # Copy binary from builder
-COPY --from=builder /app/rsshub .
+COPY --from=builder /app/grss .
 
 # Expose port
 EXPOSE 1200
@@ -35,4 +35,4 @@ ENV CACHE_TYPE=memory
 ENV MEMORY_MAX=256
 
 # Run
-CMD ["./rsshub"]
+CMD ["./grss"]

@@ -67,7 +67,7 @@ func main() {
 		addr = fmt.Sprintf("127.0.0.1:%d", cfg.Connect.Port)
 	}
 
-	log.Printf("Starting RSSHub on %s", addr)
+	log.Printf("Starting GRSS on %s", addr)
 	if err := router.Run(addr); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
@@ -78,7 +78,7 @@ func homeHandler(c *gin.Context) {
 	html := `<!DOCTYPE html>
 <html>
 <head>
-    <title>RSSHub</title>
+    <title>GRSS</title>
     <style>
         body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
         h1 { color: #333; }
@@ -89,8 +89,8 @@ func homeHandler(c *gin.Context) {
     </style>
 </head>
 <body>
-    <h1>🎉 RSSHub (Go Edition)</h1>
-    <p>Welcome to RSSHub! This is a Go rewrite of the popular RSS feed aggregation service.</p>
+    <h1>🎉 GRSS</h1>
+    <p>Welcome to GRSS! A Go-based RSS feed aggregation service inspired by RSSHub.</p>
 
     <h2>Example Routes</h2>
     <div class="example">
