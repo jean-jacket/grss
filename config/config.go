@@ -68,6 +68,14 @@ type Config struct {
 		Model  string
 	}
 
+	// YouTube Configuration
+	YouTube struct {
+		Key          string // Comma-separated API keys for rotation
+		ClientID     string
+		ClientSecret string
+		RefreshToken string
+	}
+
 	// Monitoring
 	Sentry struct {
 		DSN string
@@ -132,6 +140,12 @@ func Load() *Config {
 	C.OpenAI.APIKey = viper.GetString("OPENAI_API_KEY")
 	C.OpenAI.Model = viper.GetString("OPENAI_MODEL")
 
+	// YouTube Configuration
+	C.YouTube.Key = viper.GetString("YOUTUBE_KEY")
+	C.YouTube.ClientID = viper.GetString("YOUTUBE_CLIENT_ID")
+	C.YouTube.ClientSecret = viper.GetString("YOUTUBE_CLIENT_SECRET")
+	C.YouTube.RefreshToken = viper.GetString("YOUTUBE_REFRESH_TOKEN")
+
 	// Monitoring
 	C.Sentry.DSN = viper.GetString("SENTRY_DSN")
 
@@ -183,6 +197,12 @@ func setDefaults() {
 	// OpenAI defaults
 	viper.SetDefault("OPENAI_API_KEY", "")
 	viper.SetDefault("OPENAI_MODEL", "")
+
+	// YouTube defaults
+	viper.SetDefault("YOUTUBE_KEY", "")
+	viper.SetDefault("YOUTUBE_CLIENT_ID", "")
+	viper.SetDefault("YOUTUBE_CLIENT_SECRET", "")
+	viper.SetDefault("YOUTUBE_REFRESH_TOKEN", "")
 
 	// Monitoring defaults
 	viper.SetDefault("SENTRY_DSN", "")

@@ -9,4 +9,5 @@ package routes
 import (
 	_ "github.com/jean-jacket/grss/routes/example"
 	_ "github.com/jean-jacket/grss/routes/github"
+	_ "github.com/jean-jacket/grss/routes/youtube"
 )
