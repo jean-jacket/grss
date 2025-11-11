@@ -1,7 +1,12 @@
-.PHONY: build run test clean docker-build docker-run install dev
+.PHONY: build run test clean docker-build docker-run install dev generate
+
+# Generate code (routes, etc.)
+generate:
+	@echo "Generating routes..."
+	go run scripts/generate-routes.go
 
 # Build the application
-build:
+build: generate
 	go build -o bin/grss cmd/grss/main.go
 
 # Run the application
@@ -66,7 +71,8 @@ install-tools:
 # Help
 help:
 	@echo "Available targets:"
-	@echo "  build              - Build the application"
+	@echo "  generate           - Generate code (routes, etc.)"
+	@echo "  build              - Build the application (runs generate first)"
 	@echo "  run                - Build and run the application"
 	@echo "  install            - Install dependencies"
 	@echo "  dev                - Run with hot reload (requires air)"

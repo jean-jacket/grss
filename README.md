@@ -1,14 +1,15 @@
-# RSSHub (Go Edition)
+# GRSS
 
-A Go rewrite of [RSSHub](https://github.com/DIYgod/RSSHub), a highly scalable RSS feed aggregation service.
+A Go-based RSS feed aggregation service inspired by [RSSHub](https://github.com/DIYgod/RSSHub).
 
 ## Overview
 
-This is a ground-up rewrite of RSSHub in Go, focusing on performance, reliability, and maintainability while preserving the core architecture and functionality of the original Node.js version.
+GRSS is a ground-up rewrite of RSSHub in Go, focusing on performance, reliability, and maintainability while preserving the core architecture and functionality of the original Node.js version.
 
 ## Features
 
 - **Multiple Feed Formats**: RSS 2.0, Atom 1.0, JSON Feed 1.1
+- **Automatic Route Discovery**: Add new routes without modifying main code
 - **Aggressive Caching**: Memory (LRU) and Redis-backed caching with request deduplication
 - **Query Parameters**: Filter, limit, sort, and transform feed items
 - **Proxy Support**: Single or multi-proxy with configurable strategies
@@ -76,12 +77,19 @@ grss/
 │   ├── parameter.go     # Query parameter processing
 │   ├── access_control.go # Authentication
 │   └── header.go        # HTTP headers
-├── routes/               # Route implementations
+├── routes/               # Route implementations (auto-discovered)
+│   ├── routes.go        # Auto-generated imports (via go generate)
 │   ├── registry/        # Route registration system
-│   └── github/          # Example: GitHub namespace
+│   ├── github/          # GitHub namespace
+│   │   ├── namespace.go
+│   │   ├── issues.go
+│   │   └── init.go
+│   └── example/         # Example namespace
 │       ├── namespace.go
-│       ├── issues.go
+│       ├── hello.go
 │       └── init.go
+├── scripts/              # Code generation tools
+│   └── generate-routes.go
 ├── utils/                # Utility functions
 │   ├── logger.go
 │   └── errors.go
@@ -189,6 +197,10 @@ curl http://localhost:1200/github/issue/golang/go?format=atom&limit=20&filter=fe
 
 ## Creating New Routes
 
+Routes are **automatically discovered** - just create files in `routes/` and run `make build`. No manual imports needed!
+
+See [ROUTES.md](ROUTES.md) for detailed documentation.
+
 ### 1. Create Namespace
 
 Create `routes/{namespace}/namespace.go`:
@@ -263,14 +275,16 @@ func init() {
 }
 ```
 
-### 4. Import in Main
+### 4. Build and Test
 
-In `cmd/rsshub/main.go`, add:
+Routes are automatically discovered - no manual imports needed!
 
-```go
-import (
-    _ "github.com/jean-jacket/grss/routes/myservice"
-)
+```bash
+# The build process auto-generates imports
+make build
+
+# Test your route
+curl http://localhost:1200/myservice/myroute/test
 ```
 
 ## Caching

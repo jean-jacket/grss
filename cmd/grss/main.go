@@ -10,8 +10,8 @@ import (
 	"github.com/jean-jacket/grss/middleware"
 	"github.com/jean-jacket/grss/routes/registry"
 
-	// Import route namespaces to trigger init()
-	_ "github.com/jean-jacket/grss/routes/github"
+	// Import routes package to auto-register all route namespaces
+	_ "github.com/jean-jacket/grss/routes"
 )
 
 func main() {
