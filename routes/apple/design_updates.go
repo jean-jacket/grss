@@ -1,6 +1,8 @@
 package apple
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"regexp"
 	"strings"
@@ -14,18 +16,18 @@ import (
 	"github.com/jean-jacket/grss/routes/registry"
 )
 
-// WhatsNewRoute defines the Apple Developer Design What's New route
-var WhatsNewRoute = registry.Route{
-	Path:        "/whats-new",
-	Name:        "What's New - Design",
-	Maintainers: []string{"example"},
-	Example:     "/apple/whats-new",
+// DesignUpdatesRoute defines the Apple Developer Design updates route
+var DesignUpdatesRoute = registry.Route{
+	Path:        "/design",
+	Name:        "Design updates",
+	Maintainers: []string{"jean-jacket"},
+	Example:     "/apple/design",
 	Parameters:  map[string]interface{}{},
-	Description: "Get latest updates from Apple Developer Design What's New page",
-	Handler:     whatsNewHandler,
+	Description: "Get latest design updates from Apple Developer Design",
+	Handler:     designUpdatesHandler,
 }
 
-func whatsNewHandler(c *gin.Context) (*feed.Data, error) {
+func designUpdatesHandler(c *gin.Context) (*feed.Data, error) {
 	// Create HTTP client
 	httpClient := client.New(config.C)
 
@@ -44,129 +46,59 @@ func whatsNewHandler(c *gin.Context) (*feed.Data, error) {
 
 	// Build feed data
 	feedData := &feed.Data{
-		Title:       "Apple Developer Design - What's New",
+		Title:       "Apple design updates",
 		Link:        url,
-		Description: "Latest updates from Apple Developer Design",
+		Description: "Latest design updates from Apple Developer",
 		Language:    "en",
 		Item:        make([]feed.Item, 0),
 	}
 
-	// Parse updates - they appear to be in a list or section format
-	// This selector may need adjustment based on the actual HTML structure
-	doc.Find("article, .update-item, section[class*='update'], li[class*='update']").Each(func(i int, s *goquery.Selection) {
-		// Try to find title
-		title := ""
-		titleElem := s.Find("h2, h3, h4, .title, [class*='title']").First()
-		if titleElem.Length() > 0 {
-			title = strings.TrimSpace(titleElem.Text())
-		}
+	// Parse updates from tables
+	doc.Find("table").Each(func(i int, table *goquery.Selection) {
+		// Get the date for this table
+		dateStr := strings.TrimSpace(table.Find(".date").First().Text())
 
-		// If no title found, skip
-		if title == "" {
-			return
-		}
+		// Find all topic items in this table
+		table.Find(".topic-item").Each(func(j int, topicItem *goquery.Selection) {
+			// Get title and link
+			titleLink := topicItem.Find("span.topic-title a")
+			title := strings.TrimSpace(titleLink.Text())
 
-		// Try to find link
-		link := ""
-		linkElem := s.Find("a").First()
-		if linkElem.Length() > 0 {
-			href, exists := linkElem.Attr("href")
-			if exists {
+			if title == "" {
+				return
+			}
+
+			// Get href and construct full URL
+			href, exists := titleLink.Attr("href")
+			link := url
+			if exists && href != "" {
 				if strings.HasPrefix(href, "/") {
 					link = "https://developer.apple.com" + href
 				} else if strings.HasPrefix(href, "http") {
 					link = href
 				}
 			}
-		}
-		if link == "" {
-			link = url
-		}
 
-		// Try to find description
-		description := ""
-		descElem := s.Find("p, .description, [class*='description']").First()
-		if descElem.Length() > 0 {
-			description = strings.TrimSpace(descElem.Text())
-		}
+			// Get description
+			description := strings.TrimSpace(topicItem.Find("span.description").Text())
 
-		// Try to find date
-		dateStr := ""
-		dateElem := s.Find("time, .date, [class*='date']").First()
-		if dateElem.Length() > 0 {
-			dateStr = strings.TrimSpace(dateElem.Text())
-		}
+			// Parse date
+			pubDate := parseDate(dateStr)
 
-		// Parse date
-		pubDate := parseDate(dateStr)
-
-		// Try to find category
-		category := ""
-		categoryElem := s.Find(".category, [class*='category'], .label").First()
-		if categoryElem.Length() > 0 {
-			category = strings.TrimSpace(categoryElem.Text())
-		}
-
-		item := feed.Item{
-			Title:       title,
-			Link:        link,
-			Description: description,
-			PubDate:     pubDate,
-			GUID:        link,
-		}
-
-		if category != "" {
-			item.Category = []string{category}
-		}
-
-		feedData.Item = append(feedData.Item, item)
-	})
-
-	// If we didn't find updates with the above selector, try a more generic approach
-	if len(feedData.Item) == 0 {
-		doc.Find("article, section, .content li").Each(func(i int, s *goquery.Selection) {
-			text := strings.TrimSpace(s.Text())
-			if text == "" || len(text) < 10 {
-				return
-			}
-
-			// Try to find any link
-			link := ""
-			linkElem := s.Find("a").First()
-			if linkElem.Length() > 0 {
-				href, exists := linkElem.Attr("href")
-				if exists {
-					if strings.HasPrefix(href, "/") {
-						link = "https://developer.apple.com" + href
-					} else if strings.HasPrefix(href, "http") {
-						link = href
-					}
-				}
-			}
-			if link == "" {
-				link = url
-			}
-
-			// Extract title (first sentence or up to 100 chars)
-			title := text
-			if len(title) > 100 {
-				title = title[:100] + "..."
-			}
-			if idx := strings.Index(title, ". "); idx > 0 && idx < 100 {
-				title = title[:idx]
-			}
+			// Generate GUID from title + description + date
+			guid := generateGUID(title, description, dateStr)
 
 			item := feed.Item{
 				Title:       title,
 				Link:        link,
-				Description: text,
-				PubDate:     time.Now(),
-				GUID:        link,
+				Description: description,
+				PubDate:     pubDate,
+				GUID:        guid,
 			}
 
 			feedData.Item = append(feedData.Item, item)
 		})
-	}
+	})
 
 	// Set latest update date as feed pubDate
 	if len(feedData.Item) > 0 {
@@ -174,6 +106,13 @@ func whatsNewHandler(c *gin.Context) (*feed.Data, error) {
 	}
 
 	return feedData, nil
+}
+
+// generateGUID creates an MD5 hash from the title, description, and date
+func generateGUID(title, description, date string) string {
+	combined := title + description + date
+	hash := md5.Sum([]byte(combined))
+	return hex.EncodeToString(hash[:])
 }
 
 // parseDate attempts to parse various date formats from the page
