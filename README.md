@@ -4,28 +4,14 @@ A high-performance RSS feed aggregator written in Go, inspired by [RSSHub](https
 
 ## Available Routes
 
-### Example
-- `/example/hello` - Hello World feed (demo)
-
-### GitHub
-- `/github/issue/:user/:repo` - Repository issues
-  - Example: `/github/issue/golang/go`
-  - Query params: `state=open|closed|all`
-
-### Apple
-- `/apple/design` - Apple Developer Design updates
-  - Example: `/apple/design`
-
-### YouTube
-- `/youtube/channel/:id` - Channel videos by channel ID
-  - Example: `/youtube/channel/UCDwDMPOZfxVV0x_dz0eQ8KQ`
-  - Params: `embed=true|false`, `filterShorts=true|false`
-- `/youtube/user/:username` - Channel videos by username/handle
-  - Example: `/youtube/user/@JFlaMusic`
-  - Params: `embed=true|false`, `filterShorts=true|false`
-- `/youtube/playlist/:id` - Playlist videos
-  - Example: `/youtube/playlist/PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf`
-  - Params: `embed=true|false`
+| Route | Description | Example | Parameters |
+|-------|-------------|---------|------------|
+| `/example/hello` | Hello World feed (demo) | `/example/hello` | - |
+| `/github/issue/:user/:repo` | Repository issues | `/github/issue/golang/go` | `state=open\|closed\|all` |
+| `/apple/design` | Apple Developer Design updates | `/apple/design` | - |
+| `/youtube/channel/:id` | Channel videos by channel ID | `/youtube/channel/UCDwDMPOZfxVV0x_dz0eQ8KQ` | `embed=true\|false`, `filterShorts=true\|false` |
+| `/youtube/user/:username` | Channel videos by username/handle | `/youtube/user/@JFlaMusic` | `embed=true\|false`, `filterShorts=true\|false` |
+| `/youtube/playlist/:id` | Playlist videos | `/youtube/playlist/PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf` | `embed=true\|false` |
 
 ## Build Instructions
 
@@ -35,16 +21,17 @@ git clone https://github.com/jean-jacket/grss.git
 cd grss
 
 # Build
-go build -o rsshub cmd/grss/main.go
+go build -o grss cmd/grss/main.go
 
 # Run
-./rsshub
+./grss
 ```
 
 ## Adding New Routes
 
-Use AI to help you create new routes! Here's a basic prompt:
+The idea is to only have routes you care about. Fork the project and use AI to help you create new routes! 
 
+Here's a basic prompt:
 ```
 Create a new RSS route for GRSS that fetches [data source].
 
@@ -57,63 +44,6 @@ The route should:
 
 Follow the pattern in routes/github/issues.go for reference.
 ```
-
-### Manual Steps
-
-1. **Create namespace** at `routes/[namespace]/namespace.go`:
-```go
-package myservice
-
-import "github.com/jean-jacket/grss/routes/registry"
-
-var Namespace = &registry.Namespace{
-    Name:        "My Service",
-    URL:         "https://myservice.com",
-    Description: "Description here",
-    Lang:        "en",
-}
-```
-
-2. **Create route handler** at `routes/[namespace]/myroute.go`:
-```go
-package myservice
-
-import (
-    "github.com/gin-gonic/gin"
-    "github.com/jean-jacket/grss/feed"
-    "github.com/jean-jacket/grss/routes/registry"
-)
-
-var MyRoute = registry.Route{
-    Path:    "/myroute/:param",
-    Name:    "My Route",
-    Example: "/myservice/myroute/example",
-    Handler: myRouteHandler,
-}
-
-func myRouteHandler(c *gin.Context) (*feed.Data, error) {
-    // Fetch and return feed data
-    return &feed.Data{
-        Title: "Feed Title",
-        Link:  "https://example.com",
-        Item:  []feed.Item{...},
-    }, nil
-}
-```
-
-3. **Register route** at `routes/[namespace]/init.go`:
-```go
-package myservice
-
-import "github.com/jean-jacket/grss/routes/registry"
-
-func init() {
-    registry.RegisterNamespace("myservice", Namespace)
-    registry.RegisterRoute("myservice", MyRoute)
-}
-```
-
-4. **Build**: Routes are auto-discovered during build - no manual imports needed!
 
 ## Query Parameters
 
@@ -159,7 +89,6 @@ Real-world performance comparison (tested on same machine):
 | Startup | ~30-40s | ~100ms |
 | Binary | Requires Node.js + deps | Single static binary |
 | Concurrency | Event loop + cluster | Native goroutines |
-| Routes | 1000+ | Growing (6 routes) |
 
 **GRSS Advantages:**
 - Lower memory footprint
