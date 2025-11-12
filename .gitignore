@@ -8,9 +8,6 @@
 *.so
 *.dylib
 
-# Project binaries
-rsshub
-
 # Test binary, built with `go test -c`
 *.test
 
@@ -36,3 +33,5 @@ go.work.sum
 
 # Build directory
 bin/
+
+fly.toml
