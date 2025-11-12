@@ -1,8 +1,31 @@
 # GRSS 🌾
 
-A high-performance RSS feed aggregator written in Go, inspired by [RSSHub](https://github.com/DIYgod/RSSHub).
+A high-performance RSS feed generator written in Go, inspired by [RSSHub](https://github.com/DIYgod/RSSHub).
 
-## Available Routes
+## Philosophy
+
+GRSS is designed as a **minimal, extensible foundation** for generating your own RSS feeds. Unlike RSSHub's approach of providing hundreds of pre-built routes, GRSS encourages you to:
+
+1. **Start lean** - Include only the routes you actually use
+2. **Add on-demand** - Implement new routes as you need them
+3. **Deploy efficiently** - Run it for pennies per month on platforms like Fly.io
+
+### AI-First Development
+
+GRSS is architected for AI-assisted development. The codebase is structured so that AI coding assistants (like Claude, GPT, etc.) can easily:
+- Understand the route registration pattern
+- Implement new routes following existing conventions
+- Generate code that integrates seamlessly with the middleware chain
+
+### How to Add a New Route
+
+1. **Fork the project** and clone locally
+2. **Research the data source** - Find the API endpoint, HTML structure, or data format you want to parse
+3. **Prompt an AI assistant** - Share the research and ask it to implement a new route following the GRSS pattern (see `CLAUDE.md` for architecture details)
+4. **Test locally** - Verify the route works and returns proper feed data
+5. **Deploy** - Push to Fly.io or your preferred hosting platform 
+
+## Included Routes
 
 | Route | Description | Example | Parameters |
 |-------|-------------|---------|------------|
@@ -12,6 +35,16 @@ A high-performance RSS feed aggregator written in Go, inspired by [RSSHub](https
 | `/youtube/channel/:id` | Channel videos by channel ID | `/youtube/channel/UCDwDMPOZfxVV0x_dz0eQ8KQ` | `embed=true\|false`, `filterShorts=true\|false` |
 | `/youtube/user/:username` | Channel videos by username/handle | `/youtube/user/@JFlaMusic` | `embed=true\|false`, `filterShorts=true\|false` |
 | `/youtube/playlist/:id` | Playlist videos | `/youtube/playlist/PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf` | `embed=true\|false` |
+
+
+## Query Parameters
+
+All routes support:
+- `format=rss|atom|json` - Output format (default: rss)
+- `limit=N` - Limit items
+- `filter=regex` - Filter by title/description
+- `filterout=regex` - Exclude items
+- `sorted=asc|desc` - Sort by date
 
 ## Build Instructions
 
@@ -27,39 +60,12 @@ go build -o grss cmd/grss/main.go
 ./grss
 ```
 
-## Adding New Routes
-
-The idea is to only have routes you care about. Fork the project and use AI to help you create new routes! 
-
-Here's a basic prompt:
-```
-Create a new RSS route for GRSS that fetches [data source].
-
-The route should:
-1. Create a namespace package in routes/[namespace]/
-2. Define a namespace.go with Name, URL, Description, Lang
-3. Create [route].go with Route definition including Path, Name, Example, Handler
-4. Implement the handler function that returns *feed.Data
-5. Register both in init.go
-
-Follow the pattern in routes/github/issues.go for reference.
-```
-
-## Query Parameters
-
-All routes support:
-- `format=rss|atom|json` - Output format (default: rss)
-- `limit=N` - Limit items
-- `filter=regex` - Filter by title/description
-- `filterout=regex` - Exclude items
-- `sorted=asc|desc` - Sort by date
-
 ## Comparison to RSSHub
 
 GRSS is a ground-up rewrite of RSSHub in Go, focusing on performance and simplicity.
 
 ### Architecture
-- **RSSHub**: Node.js with Express, cluster mode for multi-core
+- **RSSHub**: Node.js with Hono, cluster mode for multi-core
 - **GRSS**: Go with Gin, native goroutines for concurrency
 
 ### Performance Benchmarks
