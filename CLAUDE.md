@@ -127,6 +127,8 @@ All routes automatically support:
 
 ## Adding New Routes
 
+When implementing new routes, follow these steps:
+
 1. Create namespace directory: `routes/{namespace}/`
 2. Create `namespace.go` with `Namespace` definition
 3. Create route file (e.g., `myroute.go`) with:
@@ -134,11 +136,18 @@ All routes automatically support:
    - Handler function returning `(*feed.Data, error)`
 4. Create `init.go` to register namespace and routes
 5. Run `make generate` to update `routes/routes.go`
-6. Build and test with `./grss -test-route /namespace/path/params`
+6. Build with `make build`
+7. **Test the route and confirm output with the user:**
+   - Run `./grss -test-route /namespace/path/params`
+   - Display the test output to the user
+   - Ask the user to confirm the output matches their expectations
+   - If the output doesn't match expectations, make adjustments and repeat
 
 See `routes/github/issues.go` for reference implementation.
 
 ## Testing Routes
+
+**IMPORTANT**: When you implement a new route, you MUST test it using the `-test-route` flag and show the output to the user for confirmation.
 
 GRSS provides a built-in route testing feature via the `-test-route` flag:
 
@@ -147,18 +156,31 @@ GRSS provides a built-in route testing feature via the `-test-route` flag:
 ./grss -test-route /github/issue/golang/go -test-limit 3
 ```
 
-This is useful for:
-- **Quick debugging** - Test routes without starting the full server
-- **Development workflow** - Verify route implementation immediately
-- **Performance analysis** - See execution time for route handlers
-- **Data inspection** - Review feed metadata and items before deployment
-
-The test output includes:
-- Route metadata (name, description)
+The test output shows:
+- Feed metadata (title, link, item count)
 - Execution timing
-- Feed metadata (title, link, description, item count)
-- First N items with full details
-- Sample JSON output
+- Table with first N items showing: #, Title, Description, Date (with relative time if within 7 days)
+
+Example output:
+```
+================================================================================
+
+Handler logs:
+
+================================================================================
+📋 golang/go Issues
+================================================================================
+Link: https://github.com/golang/go/issues
+Items: 30
+Execution time: 1.2s
+
+#   | Title                               | Description                              | Date
+-------------------------------------------------------------------------------------------------------------------
+1   | runtime: improve garbage collector...  | This proposal suggests improvements ...  | 2025-11-13 (2 hours ago)
+2   | net/http: add support for HTTP/3       | Currently the http package doesn't s...  | 2025-11-12 (1 day ago)
+```
+
+**After running the test, always ask the user**: "Does this output match your expectations?"
 
 If the route is not found, it will list all available routes.
 
