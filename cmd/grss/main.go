@@ -243,35 +243,48 @@ func testRouteHandler(routePath string, limit int) {
 	fmt.Printf("Execution time: %v\n", duration)
 	fmt.Println()
 
-	// Print items in table format
-	displayCount := limit
-	if displayCount > len(feedData.Item) {
-		displayCount = len(feedData.Item)
+	// Separate items with and without dates
+	var itemsWithDates []int
+	var itemsWithoutDates []int
+
+	for i := range feedData.Item {
+		if !feedData.Item[i].PubDate.IsZero() {
+			itemsWithDates = append(itemsWithDates, i)
+		} else {
+			itemsWithoutDates = append(itemsWithoutDates, i)
+		}
 	}
 
-	if displayCount > 0 {
-		// Define table columns with configurable widths
-		colNum := 3
-		colTitle := 35
-		colDescription := 40
-		colDate := 28
+	// Define table columns with configurable widths
+	colNum := 3
+	colTitle := 35
+	colDescription := 40
+	colDate := 28
+	totalWidth := colNum + 3 + colTitle + 3 + colDescription + 3 + colDate
 
-		// Calculate total width for separator
-		totalWidth := colNum + 3 + colTitle + 3 + colDescription + 3 + colDate
+	displayCount := limit
+	totalDisplayed := 0
+
+	// Print items with dates first
+	if len(itemsWithDates) > 0 {
+		itemsToShow := displayCount
+		if itemsToShow > len(itemsWithDates) {
+			itemsToShow = len(itemsWithDates)
+		}
 
 		// Print table header
 		fmt.Printf("%-*s | %-*s | %-*s | %-*s\n", colNum, "#", colTitle, "Title", colDescription, "Description", colDate, "Date")
 		fmt.Println(strings.Repeat("-", totalWidth))
 
-		for i := 0; i < displayCount; i++ {
-			item := feedData.Item[i]
+		for i := 0; i < itemsToShow; i++ {
+			itemIdx := itemsWithDates[i]
+			item := feedData.Item[itemIdx]
 
 			// Truncate title if too long
 			title := truncateString(item.Title, colTitle)
 
 			// Clean and truncate description
 			desc := item.Description
-			// Replace newlines and multiple spaces with single space
 			desc = strings.ReplaceAll(desc, "\n", " ")
 			desc = strings.ReplaceAll(desc, "\r", " ")
 			desc = strings.Join(strings.Fields(desc), " ")
@@ -281,18 +294,64 @@ func testRouteHandler(routePath string, limit int) {
 			}
 
 			// Format date with relative time
-			dateStr := "-"
-			if !item.PubDate.IsZero() {
-				dateStr = formatDateWithRelative(item.PubDate)
-			}
+			dateStr := formatDateWithRelative(item.PubDate)
 
 			fmt.Printf("%-*d | %-*s | %-*s | %-*s\n", colNum, i+1, colTitle, title, colDescription, desc, colDate, dateStr)
 		}
 
-		if len(feedData.Item) > displayCount {
-			fmt.Printf("\n... and %d more items\n", len(feedData.Item)-displayCount)
+		totalDisplayed = itemsToShow
+
+		if len(itemsWithDates) > itemsToShow {
+			fmt.Printf("\n... and %d more items with dates\n", len(itemsWithDates)-itemsToShow)
 		}
-	} else {
+	}
+
+	// Print items without dates separately (if any exist)
+	if len(itemsWithoutDates) > 0 {
+		remainingLimit := displayCount - totalDisplayed
+		if remainingLimit > 0 {
+			itemsToShow := remainingLimit
+			if itemsToShow > len(itemsWithoutDates) {
+				itemsToShow = len(itemsWithoutDates)
+			}
+
+			if itemsToShow > 0 {
+				if totalDisplayed > 0 {
+					fmt.Println()
+				}
+				fmt.Println("⚠️  Items without dates:")
+				fmt.Println(strings.Repeat("-", totalWidth))
+
+				for i := 0; i < itemsToShow; i++ {
+					itemIdx := itemsWithoutDates[i]
+					item := feedData.Item[itemIdx]
+
+					// Truncate title if too long
+					title := truncateString(item.Title, colTitle)
+
+					// Clean and truncate description
+					desc := item.Description
+					desc = strings.ReplaceAll(desc, "\n", " ")
+					desc = strings.ReplaceAll(desc, "\r", " ")
+					desc = strings.Join(strings.Fields(desc), " ")
+					desc = truncateString(desc, colDescription)
+					if desc == "" {
+						desc = "-"
+					}
+
+					fmt.Printf("%-*d | %-*s | %-*s | %-*s\n", colNum, i+1, colTitle, title, colDescription, desc, colDate, "-")
+				}
+
+				if len(itemsWithoutDates) > itemsToShow {
+					fmt.Printf("\n... and %d more items without dates\n", len(itemsWithoutDates)-itemsToShow)
+				}
+			}
+		} else if len(itemsWithoutDates) > 0 {
+			fmt.Printf("\nℹ️  %d items without dates (not shown due to limit)\n", len(itemsWithoutDates))
+		}
+	}
+
+	if len(feedData.Item) == 0 {
 		fmt.Println("ℹ️  No items in feed")
 	}
 	fmt.Println()
