@@ -58,7 +58,33 @@ go build -o grss cmd/grss/main.go
 
 # Run
 ./grss
+
+# Test a specific route (debug mode)
+./grss -test-route /github/issue/golang/go
+./grss -test-route /github/issue/golang/go -test-limit 3
 ```
+
+## Testing Routes
+
+GRSS includes a built-in route testing feature for debugging and development:
+
+```bash
+# Test a route and see the output
+./grss -test-route /github/issue/golang/go
+
+# Limit the number of items displayed
+./grss -test-route /github/issue/golang/go -test-limit 3
+```
+
+This will:
+- Execute the route handler without starting the server
+- Display timing information (how long the route took to execute)
+- Print the feed metadata (title, description, etc.)
+- Show the first few feed items with their details
+- Display a sample JSON output
+- Exit immediately
+
+Perfect for quickly verifying that a route is working correctly during development!
 
 ## Comparison to RSSHub
 

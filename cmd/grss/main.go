@@ -1,8 +1,15 @@
 package main
 
 import (
+	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
+	"net/http/httptest"
+	"net/url"
+	"regexp"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jean-jacket/grss/cache"
@@ -15,8 +22,19 @@ import (
 )
 
 func main() {
+	// Command-line flags
+	testRoute := flag.String("test-route", "", "Test a route and print its output (e.g., '/github/issue/golang/go')")
+	testLimit := flag.Int("test-limit", 5, "Number of items to display when testing a route")
+	flag.Parse()
+
 	// Load configuration
 	cfg := config.Load()
+
+	// If test-route flag is set, run route test and exit
+	if *testRoute != "" {
+		testRouteHandler(*testRoute, *testLimit)
+		return
+	}
 
 	// Set Gin mode
 	if !cfg.Debug {
@@ -134,4 +152,270 @@ func robotsHandler(c *gin.Context) {
 	}
 	c.Header("Content-Type", "text/plain")
 	c.String(200, robots)
+}
+
+// testRouteHandler tests a route and prints debug information
+func testRouteHandler(routePath string, limit int) {
+	// Ensure route starts with /
+	if !strings.HasPrefix(routePath, "/") {
+		routePath = "/" + routePath
+	}
+
+	fmt.Printf("🧪 Testing route: %s\n", routePath)
+	fmt.Println(strings.Repeat("=", 80))
+	fmt.Println()
+
+	// Get all registered routes
+	allRoutes := registry.GetAllRoutes()
+
+	// Find matching route by trying to match the path pattern
+	var matchedRoute *registry.RouteInfo
+	var params map[string]string
+
+	for pattern, routeInfo := range allRoutes {
+		if matched, extractedParams := matchRoutePath(pattern, routePath); matched {
+			matchedRoute = &routeInfo
+			params = extractedParams
+			break
+		}
+	}
+
+	if matchedRoute == nil {
+		fmt.Printf("❌ Route not found: %s\n\n", routePath)
+		fmt.Println("Available routes:")
+		for path := range allRoutes {
+			fmt.Printf("  - %s\n", path)
+		}
+		return
+	}
+
+	fmt.Printf("✓ Route found: %s\n", matchedRoute.Route.Name)
+	if matchedRoute.Route.Description != "" {
+		fmt.Printf("  Description: %s\n", matchedRoute.Route.Description)
+	}
+	fmt.Println()
+
+	// Create a mock Gin context
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+
+	// Set up the request with params
+	c.Request = httptest.NewRequest("GET", routePath, nil)
+	c.Params = make(gin.Params, 0, len(params))
+	for key, value := range params {
+		c.Params = append(c.Params, gin.Param{Key: key, Value: value})
+	}
+
+	// Parse query parameters if present
+	if strings.Contains(routePath, "?") {
+		parts := strings.SplitN(routePath, "?", 2)
+		if len(parts) == 2 {
+			queryParams, err := url.ParseQuery(parts[1])
+			if err == nil {
+				c.Request.URL.RawQuery = parts[1]
+				for key, values := range queryParams {
+					if len(values) > 0 {
+						c.Request.Form = url.Values{}
+						c.Request.Form[key] = values
+					}
+				}
+			}
+		}
+	}
+
+	// Execute the handler and measure time
+	fmt.Println("⏱️  Executing handler...")
+	startTime := time.Now()
+
+	feedData, err := matchedRoute.Route.Handler(c)
+
+	duration := time.Since(startTime)
+
+	fmt.Println()
+	fmt.Printf("✓ Execution time: %v\n", duration)
+	fmt.Println()
+
+	if err != nil {
+		fmt.Printf("❌ Error: %v\n", err)
+		return
+	}
+
+	if feedData == nil {
+		fmt.Println("❌ Handler returned nil feed data")
+		return
+	}
+
+	// Print feed metadata
+	fmt.Println(strings.Repeat("=", 80))
+	fmt.Println("📊 Feed Metadata")
+	fmt.Println(strings.Repeat("=", 80))
+	fmt.Printf("Title:       %s\n", feedData.Title)
+	fmt.Printf("Link:        %s\n", feedData.Link)
+	if feedData.Description != "" {
+		fmt.Printf("Description: %s\n", feedData.Description)
+	}
+	if feedData.Language != "" {
+		fmt.Printf("Language:    %s\n", feedData.Language)
+	}
+	if !feedData.PubDate.IsZero() {
+		fmt.Printf("PubDate:     %s\n", feedData.PubDate.Format(time.RFC3339))
+	}
+	fmt.Printf("Total Items: %d\n", len(feedData.Item))
+	fmt.Println()
+
+	// Print items
+	displayCount := limit
+	if displayCount > len(feedData.Item) {
+		displayCount = len(feedData.Item)
+	}
+
+	if displayCount > 0 {
+		fmt.Println(strings.Repeat("=", 80))
+		fmt.Printf("📝 First %d Items\n", displayCount)
+		fmt.Println(strings.Repeat("=", 80))
+		fmt.Println()
+
+		for i := 0; i < displayCount; i++ {
+			item := feedData.Item[i]
+			fmt.Printf("Item #%d\n", i+1)
+			fmt.Println(strings.Repeat("-", 80))
+			fmt.Printf("Title:  %s\n", item.Title)
+			fmt.Printf("Link:   %s\n", item.Link)
+
+			if item.Author != "" {
+				fmt.Printf("Author: %s\n", item.Author)
+			}
+
+			if !item.PubDate.IsZero() {
+				fmt.Printf("Date:   %s\n", item.PubDate.Format(time.RFC3339))
+			}
+
+			if len(item.Category) > 0 {
+				fmt.Printf("Tags:   %s\n", strings.Join(item.Category, ", "))
+			}
+
+			if item.Description != "" {
+				// Truncate description if too long
+				desc := item.Description
+				maxLen := 200
+				if len(desc) > maxLen {
+					desc = desc[:maxLen] + "..."
+				}
+				// Replace newlines for cleaner output
+				desc = strings.ReplaceAll(desc, "\n", " ")
+				desc = strings.ReplaceAll(desc, "\r", "")
+				fmt.Printf("Desc:   %s\n", desc)
+			}
+
+			fmt.Println()
+		}
+
+		if len(feedData.Item) > displayCount {
+			fmt.Printf("... and %d more items\n\n", len(feedData.Item)-displayCount)
+		}
+	} else {
+		fmt.Println("ℹ️  No items in feed")
+		fmt.Println()
+	}
+
+	// Print summary
+	fmt.Println(strings.Repeat("=", 80))
+	fmt.Println("✅ Test completed successfully")
+	fmt.Println(strings.Repeat("=", 80))
+
+	// Print sample JSON output
+	fmt.Println()
+	fmt.Println("Sample JSON output:")
+	fmt.Println(strings.Repeat("-", 80))
+	jsonData, err := json.MarshalIndent(feedData, "", "  ")
+	if err == nil {
+		// Limit JSON output size
+		jsonStr := string(jsonData)
+		if len(jsonStr) > 1000 {
+			jsonStr = jsonStr[:1000] + "\n  ...(truncated)"
+		}
+		fmt.Println(jsonStr)
+	}
+	fmt.Println()
+}
+
+// matchRoutePath matches a route pattern against an actual path and extracts params
+// For example: "/github/issue/:user/:repo" matches "/github/issue/golang/go"
+func matchRoutePath(pattern, path string) (bool, map[string]string) {
+	params := make(map[string]string)
+
+	patternParts := strings.Split(strings.Trim(pattern, "/"), "/")
+	pathParts := strings.Split(strings.Trim(path, "/"), "/")
+
+	// Remove query string from last part if present
+	if len(pathParts) > 0 {
+		lastPart := pathParts[len(pathParts)-1]
+		if idx := strings.Index(lastPart, "?"); idx != -1 {
+			pathParts[len(pathParts)-1] = lastPart[:idx]
+		}
+	}
+
+	// Must have same number of parts
+	if len(patternParts) != len(pathParts) {
+		return false, nil
+	}
+
+	// Match each part
+	for i := 0; i < len(patternParts); i++ {
+		patternPart := patternParts[i]
+		pathPart := pathParts[i]
+
+		// Check if this is a parameter (starts with :)
+		if strings.HasPrefix(patternPart, ":") {
+			paramName := strings.TrimPrefix(patternPart, ":")
+			params[paramName] = pathPart
+		} else if strings.HasPrefix(patternPart, "*") {
+			// Wildcard match - match anything
+			paramName := strings.TrimPrefix(patternPart, "*")
+			if paramName != "" {
+				params[paramName] = pathPart
+			}
+		} else {
+			// Exact match required
+			if patternPart != pathPart {
+				return false, nil
+			}
+		}
+	}
+
+	return true, params
+}
+
+// matchRouteWithRegex provides more sophisticated pattern matching
+func matchRouteWithRegex(pattern, path string) (bool, map[string]string) {
+	params := make(map[string]string)
+
+	// Convert Gin route pattern to regex
+	regexPattern := "^" + pattern + "$"
+
+	// Replace :param with named capture group
+	paramRegex := regexp.MustCompile(`:([a-zA-Z0-9_]+)`)
+	matches := paramRegex.FindAllStringSubmatch(pattern, -1)
+
+	for _, match := range matches {
+		paramName := match[1]
+		regexPattern = strings.Replace(regexPattern, ":"+paramName, "(?P<"+paramName+">[^/]+)", 1)
+	}
+
+	// Try to match
+	re := regexp.MustCompile(regexPattern)
+	if !re.MatchString(path) {
+		return false, nil
+	}
+
+	// Extract parameters
+	matchResult := re.FindStringSubmatch(path)
+	for i, name := range re.SubexpNames() {
+		if i > 0 && i <= len(matchResult) {
+			params[name] = matchResult[i]
+		}
+	}
+
+	return true, params
 }

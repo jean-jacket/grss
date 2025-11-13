@@ -15,6 +15,10 @@ make build
 # Run the application
 make run
 
+# Test a specific route (debug mode - does not start server)
+./grss -test-route /github/issue/golang/go
+./grss -test-route /github/issue/golang/go -test-limit 3
+
 # Run tests
 go test -v ./...
 
@@ -130,9 +134,33 @@ All routes automatically support:
    - Handler function returning `(*feed.Data, error)`
 4. Create `init.go` to register namespace and routes
 5. Run `make generate` to update `routes/routes.go`
-6. Build and test
+6. Build and test with `./grss -test-route /namespace/path/params`
 
 See `routes/github/issues.go` for reference implementation.
+
+## Testing Routes
+
+GRSS provides a built-in route testing feature via the `-test-route` flag:
+
+```bash
+./grss -test-route /github/issue/golang/go
+./grss -test-route /github/issue/golang/go -test-limit 3
+```
+
+This is useful for:
+- **Quick debugging** - Test routes without starting the full server
+- **Development workflow** - Verify route implementation immediately
+- **Performance analysis** - See execution time for route handlers
+- **Data inspection** - Review feed metadata and items before deployment
+
+The test output includes:
+- Route metadata (name, description)
+- Execution timing
+- Feed metadata (title, link, description, item count)
+- First N items with full details
+- Sample JSON output
+
+If the route is not found, it will list all available routes.
 
 ## Configuration via Environment Variables
 
