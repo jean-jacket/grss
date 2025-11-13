@@ -135,3 +135,31 @@ func RegisterRoute(namespaceName string, route Route) {
 func MountRoutes(router *gin.Engine) {
 	DefaultRegistry.MountRoutes(router)
 }
+
+// GetAllRoutes returns a flat list of all routes with their full paths
+func (r *Registry) GetAllRoutes() map[string]RouteInfo {
+	routes := make(map[string]RouteInfo)
+	for namespaceName, namespace := range r.namespaces {
+		for _, route := range namespace.Routes {
+			path := "/" + namespaceName + route.Path
+			routes[path] = RouteInfo{
+				Path:      path,
+				Namespace: namespaceName,
+				Route:     route,
+			}
+		}
+	}
+	return routes
+}
+
+// RouteInfo contains route path and handler information
+type RouteInfo struct {
+	Path      string
+	Namespace string
+	Route     Route
+}
+
+// GetAllRoutes returns all routes from the default registry
+func GetAllRoutes() map[string]RouteInfo {
+	return DefaultRegistry.GetAllRoutes()
+}

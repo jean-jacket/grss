@@ -22,7 +22,29 @@ GRSS is architected for AI-assisted development. The codebase is structured so t
 1. **Fork the project** and clone locally
 2. **Research the data source** - Find the API endpoint, HTML structure, or data format you want to parse
 3. **Prompt an AI assistant** - Share the research and ask it to implement a new route following the GRSS pattern (see `CLAUDE.md` for architecture details)
-4. **Test locally** - Verify the route works and returns proper feed data
+4. **Test the route** - Use the built-in testing feature to verify the output matches your expectations:
+   ```bash
+   ./grss -test-route /your/new/route
+   ```
+
+   Example output:
+   ```
+   ================================================================================
+
+   Handler logs:
+
+   ================================================================================
+   📋 golang/go Issues
+   ================================================================================
+   Link: https://github.com/golang/go/issues
+   Items: 30
+   Execution time: 1.2s
+
+   #   | Title                               | Description                              | Date
+   -------------------------------------------------------------------------------------------------------------------
+   1   | runtime: improve garbage collector...  | This proposal suggests improvements ...  | 2025-11-13 (2 hours ago)
+   2   | net/http: add support for HTTP/3       | Currently the http package doesn't s...  | 2025-11-12 (1 day ago)
+   ```
 5. **Deploy** - Push to Fly.io or your preferred hosting platform 
 
 ## Included Routes
@@ -58,6 +80,10 @@ go build -o grss cmd/grss/main.go
 
 # Run
 ./grss
+
+# Test a specific route (debug mode)
+./grss -test-route /github/issue/golang/go
+./grss -test-route /github/issue/golang/go -test-limit 3
 ```
 
 ## Comparison to RSSHub
