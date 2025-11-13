@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -248,95 +247,62 @@ func testRouteHandler(routePath string, limit int) {
 
 	// Print feed metadata
 	fmt.Println(strings.Repeat("=", 80))
-	fmt.Println("📊 Feed Metadata")
+	fmt.Printf("📊 %s\n", feedData.Title)
 	fmt.Println(strings.Repeat("=", 80))
-	fmt.Printf("Title:       %s\n", feedData.Title)
-	fmt.Printf("Link:        %s\n", feedData.Link)
+	fmt.Printf("Link: %s\n", feedData.Link)
 	if feedData.Description != "" {
 		fmt.Printf("Description: %s\n", feedData.Description)
 	}
-	if feedData.Language != "" {
-		fmt.Printf("Language:    %s\n", feedData.Language)
-	}
-	if !feedData.PubDate.IsZero() {
-		fmt.Printf("PubDate:     %s\n", feedData.PubDate.Format(time.RFC3339))
-	}
-	fmt.Printf("Total Items: %d\n", len(feedData.Item))
+	fmt.Printf("Items: %d\n", len(feedData.Item))
 	fmt.Println()
 
-	// Print items
+	// Print items in table format
 	displayCount := limit
 	if displayCount > len(feedData.Item) {
 		displayCount = len(feedData.Item)
 	}
 
 	if displayCount > 0 {
-		fmt.Println(strings.Repeat("=", 80))
-		fmt.Printf("📝 First %d Items\n", displayCount)
-		fmt.Println(strings.Repeat("=", 80))
-		fmt.Println()
+		// Print table header
+		fmt.Printf("%-3s | %-45s | %-12s | %-12s\n", "#", "Title", "Author", "Date")
+		fmt.Println(strings.Repeat("-", 80))
 
 		for i := 0; i < displayCount; i++ {
 			item := feedData.Item[i]
-			fmt.Printf("Item #%d\n", i+1)
-			fmt.Println(strings.Repeat("-", 80))
-			fmt.Printf("Title:  %s\n", item.Title)
-			fmt.Printf("Link:   %s\n", item.Link)
 
-			if item.Author != "" {
-				fmt.Printf("Author: %s\n", item.Author)
+			// Truncate title if too long
+			title := item.Title
+			if len(title) > 45 {
+				title = title[:42] + "..."
 			}
 
+			// Truncate author if too long
+			author := item.Author
+			if len(author) > 12 {
+				author = author[:9] + "..."
+			}
+			if author == "" {
+				author = "-"
+			}
+
+			// Format date
+			dateStr := "-"
 			if !item.PubDate.IsZero() {
-				fmt.Printf("Date:   %s\n", item.PubDate.Format(time.RFC3339))
+				dateStr = item.PubDate.Format("2006-01-02")
 			}
 
-			if len(item.Category) > 0 {
-				fmt.Printf("Tags:   %s\n", strings.Join(item.Category, ", "))
-			}
-
-			if item.Description != "" {
-				// Truncate description if too long
-				desc := item.Description
-				maxLen := 200
-				if len(desc) > maxLen {
-					desc = desc[:maxLen] + "..."
-				}
-				// Replace newlines for cleaner output
-				desc = strings.ReplaceAll(desc, "\n", " ")
-				desc = strings.ReplaceAll(desc, "\r", "")
-				fmt.Printf("Desc:   %s\n", desc)
-			}
-
-			fmt.Println()
+			fmt.Printf("%-3d | %-45s | %-12s | %-12s\n", i+1, title, author, dateStr)
 		}
 
 		if len(feedData.Item) > displayCount {
-			fmt.Printf("... and %d more items\n\n", len(feedData.Item)-displayCount)
+			fmt.Printf("\n... and %d more items\n", len(feedData.Item)-displayCount)
 		}
 	} else {
 		fmt.Println("ℹ️  No items in feed")
-		fmt.Println()
 	}
 
-	// Print summary
-	fmt.Println(strings.Repeat("=", 80))
-	fmt.Println("✅ Test completed successfully")
-	fmt.Println(strings.Repeat("=", 80))
-
-	// Print sample JSON output
 	fmt.Println()
-	fmt.Println("Sample JSON output:")
-	fmt.Println(strings.Repeat("-", 80))
-	jsonData, err := json.MarshalIndent(feedData, "", "  ")
-	if err == nil {
-		// Limit JSON output size
-		jsonStr := string(jsonData)
-		if len(jsonStr) > 1000 {
-			jsonStr = jsonStr[:1000] + "\n  ...(truncated)"
-		}
-		fmt.Println(jsonStr)
-	}
+	fmt.Println("✅ Test completed successfully")
 	fmt.Println()
 }
 
