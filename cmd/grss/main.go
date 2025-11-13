@@ -160,7 +160,6 @@ func testRouteHandler(routePath string, limit int) {
 		routePath = "/" + routePath
 	}
 
-	fmt.Printf("🧪 Testing route: %s\n", routePath)
 	fmt.Println(strings.Repeat("=", 80))
 	fmt.Println()
 
@@ -187,12 +186,6 @@ func testRouteHandler(routePath string, limit int) {
 		}
 		return
 	}
-
-	fmt.Printf("✓ Route found: %s\n", matchedRoute.Route.Name)
-	if matchedRoute.Route.Description != "" {
-		fmt.Printf("  Description: %s\n", matchedRoute.Route.Description)
-	}
-	fmt.Println()
 
 	// Create a mock Gin context
 	gin.SetMode(gin.TestMode)
@@ -224,15 +217,12 @@ func testRouteHandler(routePath string, limit int) {
 	}
 
 	// Execute the handler and measure time
-	fmt.Println("⏱️  Executing handler...")
+	fmt.Println("Handler logs:")
 	startTime := time.Now()
 
 	feedData, err := matchedRoute.Route.Handler(c)
 
 	duration := time.Since(startTime)
-
-	fmt.Println()
-	fmt.Printf("✓ Execution time: %v\n", duration)
 	fmt.Println()
 
 	if err != nil {
@@ -247,13 +237,10 @@ func testRouteHandler(routePath string, limit int) {
 
 	// Print feed metadata
 	fmt.Println(strings.Repeat("=", 80))
-	fmt.Printf("📊 %s\n", feedData.Title)
+	fmt.Printf("📋 %s\n", feedData.Title)
 	fmt.Println(strings.Repeat("=", 80))
 	fmt.Printf("Link: %s\n", feedData.Link)
-	if feedData.Description != "" {
-		fmt.Printf("Description: %s\n", feedData.Description)
-	}
-	fmt.Printf("Items: %d\n", len(feedData.Item))
+	fmt.Printf("Items: %d | Execution time: %v\n", len(feedData.Item), duration)
 	fmt.Println()
 
 	// Print items in table format
@@ -263,24 +250,27 @@ func testRouteHandler(routePath string, limit int) {
 	}
 
 	if displayCount > 0 {
+		// Define table columns with configurable widths
+		colNum := 3
+		colTitle := 50
+		colAuthor := 15
+		colDate := 10
+
+		// Calculate total width for separator
+		totalWidth := colNum + 3 + colTitle + 3 + colAuthor + 3 + colDate
+
 		// Print table header
-		fmt.Printf("%-3s | %-45s | %-12s | %-12s\n", "#", "Title", "Author", "Date")
-		fmt.Println(strings.Repeat("-", 80))
+		fmt.Printf("%-*s | %-*s | %-*s | %-*s\n", colNum, "#", colTitle, "Title", colAuthor, "Author", colDate, "Date")
+		fmt.Println(strings.Repeat("-", totalWidth))
 
 		for i := 0; i < displayCount; i++ {
 			item := feedData.Item[i]
 
 			// Truncate title if too long
-			title := item.Title
-			if len(title) > 45 {
-				title = title[:42] + "..."
-			}
+			title := truncateString(item.Title, colTitle)
 
 			// Truncate author if too long
-			author := item.Author
-			if len(author) > 12 {
-				author = author[:9] + "..."
-			}
+			author := truncateString(item.Author, colAuthor)
 			if author == "" {
 				author = "-"
 			}
@@ -291,7 +281,7 @@ func testRouteHandler(routePath string, limit int) {
 				dateStr = item.PubDate.Format("2006-01-02")
 			}
 
-			fmt.Printf("%-3d | %-45s | %-12s | %-12s\n", i+1, title, author, dateStr)
+			fmt.Printf("%-*d | %-*s | %-*s | %-*s\n", colNum, i+1, colTitle, title, colAuthor, author, colDate, dateStr)
 		}
 
 		if len(feedData.Item) > displayCount {
@@ -300,10 +290,19 @@ func testRouteHandler(routePath string, limit int) {
 	} else {
 		fmt.Println("ℹ️  No items in feed")
 	}
+	fmt.Println()
+}
 
-	fmt.Println()
-	fmt.Println("✅ Test completed successfully")
-	fmt.Println()
+// truncateString truncates a string to fit within maxLen, accounting for multi-byte characters
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	// Account for "..." suffix
+	if maxLen < 3 {
+		return s[:maxLen]
+	}
+	return s[:maxLen-3] + "..."
 }
 
 // matchRoutePath matches a route pattern against an actual path and extracts params
