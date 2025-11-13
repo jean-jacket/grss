@@ -2,6 +2,7 @@ package anthropic
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -65,6 +66,11 @@ func newsHandler(c *gin.Context) (*feed.Data, error) {
 		if item.Title != "" {
 			feedData.Item = append(feedData.Item, item)
 		}
+	})
+
+	// Sort items by date (most recent first)
+	sort.Slice(feedData.Item, func(i, j int) bool {
+		return feedData.Item[i].PubDate.After(feedData.Item[j].PubDate)
 	})
 
 	// Set latest item date as feed pubDate
