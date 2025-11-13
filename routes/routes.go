@@ -7,6 +7,7 @@ package routes
 
 // Import all route namespaces to trigger their init() functions
 import (
+	_ "github.com/jean-jacket/grss/routes/anthropic"
 	_ "github.com/jean-jacket/grss/routes/apple"
 	_ "github.com/jean-jacket/grss/routes/example"
 	_ "github.com/jean-jacket/grss/routes/github"
