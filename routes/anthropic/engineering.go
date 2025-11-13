@@ -56,10 +56,17 @@ func engineeringHandler(c *gin.Context) (*feed.Data, error) {
 	}
 
 	// Parse featured item (if present)
-	doc.Find("a.ArticleList_cardLink__VWIzl").Each(func(i int, s *goquery.Selection) {
-		item := parseFeaturedItem(s, htmlContent)
-		if item.Title != "" {
-			feedData.Item = append(feedData.Item, item)
+	// Look for any anchor that contains a "Featured" label
+	doc.Find("a").Each(func(i int, s *goquery.Selection) {
+		// Check if this link contains a "Featured" span/label
+		if s.Find("span").FilterFunction(func(j int, span *goquery.Selection) bool {
+			text := strings.TrimSpace(span.Text())
+			return strings.Contains(strings.ToLower(text), "featured")
+		}).Length() > 0 {
+			item := parseFeaturedItem(s, htmlContent)
+			if item.Title != "" {
+				feedData.Item = append(feedData.Item, item)
+			}
 		}
 	})
 
@@ -101,12 +108,18 @@ func parseFeaturedItem(s *goquery.Selection, htmlContent string) feed.Item {
 	item.Link = href
 	item.GUID = href
 
-	// Extract title from h2
-	title := strings.TrimSpace(s.Find("h2.display-sans-l.bold").Text())
+	// Extract title from h2 (try specific classes first, then any h2)
+	title := strings.TrimSpace(s.Find("h2.display-sans-l").Text())
+	if title == "" {
+		title = strings.TrimSpace(s.Find("h2").Text())
+	}
 	item.Title = title
 
-	// Extract summary if present
-	summary := strings.TrimSpace(s.Find("p.paragraph-l.tight.ArticleList_summary__G96cV").Text())
+	// Extract summary if present (try specific class first, then any paragraph)
+	summary := strings.TrimSpace(s.Find("p[class*='summary']").Text())
+	if summary == "" {
+		summary = strings.TrimSpace(s.Find("p").Text())
+	}
 	if summary != "" {
 		item.Description = summary
 	}
