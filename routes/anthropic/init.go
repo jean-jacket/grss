@@ -6,4 +6,5 @@ import "github.com/jean-jacket/grss/routes/registry"
 func init() {
 	registry.RegisterNamespace("anthropic", Namespace)
 	registry.RegisterRoute("anthropic", NewsRoute)
+	registry.RegisterRoute("anthropic", EngineeringRoute)
 }
