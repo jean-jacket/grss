@@ -238,9 +238,9 @@ func testRouteHandler(routePath string, limit int) {
 	// Print feed metadata
 	fmt.Println(strings.Repeat("=", 80))
 	fmt.Printf("📋 %s\n", feedData.Title)
-	fmt.Println(strings.Repeat("=", 80))
 	fmt.Printf("Link: %s\n", feedData.Link)
-	fmt.Printf("Items: %d | Execution time: %v\n", len(feedData.Item), duration)
+	fmt.Printf("Items: %d\n", len(feedData.Item))
+	fmt.Printf("Execution time: %v\n", duration)
 	fmt.Println()
 
 	// Print items in table format
