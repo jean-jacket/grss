@@ -252,15 +252,15 @@ func testRouteHandler(routePath string, limit int) {
 	if displayCount > 0 {
 		// Define table columns with configurable widths
 		colNum := 3
-		colTitle := 50
-		colAuthor := 15
-		colDate := 10
+		colTitle := 35
+		colDescription := 40
+		colDate := 28
 
 		// Calculate total width for separator
-		totalWidth := colNum + 3 + colTitle + 3 + colAuthor + 3 + colDate
+		totalWidth := colNum + 3 + colTitle + 3 + colDescription + 3 + colDate
 
 		// Print table header
-		fmt.Printf("%-*s | %-*s | %-*s | %-*s\n", colNum, "#", colTitle, "Title", colAuthor, "Author", colDate, "Date")
+		fmt.Printf("%-*s | %-*s | %-*s | %-*s\n", colNum, "#", colTitle, "Title", colDescription, "Description", colDate, "Date")
 		fmt.Println(strings.Repeat("-", totalWidth))
 
 		for i := 0; i < displayCount; i++ {
@@ -269,19 +269,24 @@ func testRouteHandler(routePath string, limit int) {
 			// Truncate title if too long
 			title := truncateString(item.Title, colTitle)
 
-			// Truncate author if too long
-			author := truncateString(item.Author, colAuthor)
-			if author == "" {
-				author = "-"
+			// Clean and truncate description
+			desc := item.Description
+			// Replace newlines and multiple spaces with single space
+			desc = strings.ReplaceAll(desc, "\n", " ")
+			desc = strings.ReplaceAll(desc, "\r", " ")
+			desc = strings.Join(strings.Fields(desc), " ")
+			desc = truncateString(desc, colDescription)
+			if desc == "" {
+				desc = "-"
 			}
 
-			// Format date
+			// Format date with relative time
 			dateStr := "-"
 			if !item.PubDate.IsZero() {
-				dateStr = item.PubDate.Format("2006-01-02")
+				dateStr = formatDateWithRelative(item.PubDate)
 			}
 
-			fmt.Printf("%-*d | %-*s | %-*s | %-*s\n", colNum, i+1, colTitle, title, colAuthor, author, colDate, dateStr)
+			fmt.Printf("%-*d | %-*s | %-*s | %-*s\n", colNum, i+1, colTitle, title, colDescription, desc, colDate, dateStr)
 		}
 
 		if len(feedData.Item) > displayCount {
@@ -303,6 +308,64 @@ func truncateString(s string, maxLen int) string {
 		return s[:maxLen]
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// formatDateWithRelative formats a date with relative time if within a week
+func formatDateWithRelative(t time.Time) string {
+	now := time.Now()
+	diff := now.Sub(t)
+
+	dateStr := t.Format("2006-01-02")
+
+	// Only show relative time if within a week
+	if diff < 7*24*time.Hour && diff >= 0 {
+		relativeStr := formatRelativeTime(diff)
+		return fmt.Sprintf("%s (%s)", dateStr, relativeStr)
+	}
+
+	return dateStr
+}
+
+// formatRelativeTime converts a duration to a human-readable relative time string
+func formatRelativeTime(d time.Duration) string {
+	if d < 0 {
+		return "in the future"
+	}
+
+	seconds := int(d.Seconds())
+	minutes := seconds / 60
+	hours := minutes / 60
+	days := hours / 24
+
+	if days > 0 {
+		if days == 1 {
+			return "1 day ago"
+		}
+		return fmt.Sprintf("%d days ago", days)
+	}
+
+	if hours > 0 {
+		if hours == 1 {
+			return "1 hour ago"
+		}
+		return fmt.Sprintf("%d hours ago", hours)
+	}
+
+	if minutes > 0 {
+		if minutes == 1 {
+			return "1 min ago"
+		}
+		return fmt.Sprintf("%d mins ago", minutes)
+	}
+
+	if seconds > 0 {
+		if seconds == 1 {
+			return "1 sec ago"
+		}
+		return fmt.Sprintf("%d secs ago", seconds)
+	}
+
+	return "just now"
 }
 
 // matchRoutePath matches a route pattern against an actual path and extracts params
