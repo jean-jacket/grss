@@ -47,18 +47,6 @@ GRSS is architected for AI-assisted development. The codebase is structured so t
    ```
 5. **Deploy** - Push to Fly.io or your preferred hosting platform 
 
-## Included Routes
-
-| Route | Description | Example | Parameters |
-|-------|-------------|---------|------------|
-| `/example/hello` | Hello World feed (demo) | `/example/hello` | - |
-| `/github/issue/:user/:repo` | Repository issues | `/github/issue/golang/go` | `state=open\|closed\|all` |
-| `/apple/design` | Apple Developer Design updates | `/apple/design` | - |
-| `/youtube/channel/:id` | Channel videos by channel ID | `/youtube/channel/UCDwDMPOZfxVV0x_dz0eQ8KQ` | `embed=true\|false`, `filterShorts=true\|false` |
-| `/youtube/user/:username` | Channel videos by username/handle | `/youtube/user/@JFlaMusic` | `embed=true\|false`, `filterShorts=true\|false` |
-| `/youtube/playlist/:id` | Playlist videos | `/youtube/playlist/PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf` | `embed=true\|false` |
-
-
 ## Query Parameters
 
 All routes support:
