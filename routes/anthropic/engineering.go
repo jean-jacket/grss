@@ -183,29 +183,48 @@ func extractDateFromJS(htmlContent, slug string) time.Time {
 	// Escape special regex characters in slug
 	escapedSlug := regexp.QuoteMeta(slug)
 
-	// Look for pattern: "publishedOn":"YYYY-MM-DD","slug":{"_type":"slug","current":"<slug>"}
-	// or: "slug":{"_type":"slug","current":"<slug>"}...walk back to find publishedOn
+	// Look for pattern in escaped JSON: \"publishedOn\":\"YYYY-MM-DD\",\"slug\":{\"_type\":\"slug\",\"current\":\"<slug>\"}
+	// The JSON is typically embedded in HTML with escaped quotes
 
-	// Find the slug in the JSON
-	slugPattern := `"slug":\{"_type":"slug","current":"` + escapedSlug + `"`
+	// Try escaped JSON first (most common in embedded script tags)
+	slugPattern := `\\"slug\\":\{\\"_type\\":\\"slug\\",\\"current\\":\\"` + escapedSlug + `\\"`
 	slugRegex := regexp.MustCompile(slugPattern)
 
 	matches := slugRegex.FindStringIndex(htmlContent)
 	if matches == nil {
-		return time.Time{}
+		// Try unescaped JSON as fallback
+		slugPattern = `"slug":\{"_type":"slug","current":"` + escapedSlug + `"`
+		slugRegex = regexp.MustCompile(slugPattern)
+		matches = slugRegex.FindStringIndex(htmlContent)
+		if matches == nil {
+			return time.Time{}
+		}
 	}
 
-	// Get context around the match (500 chars before should be enough)
-	start := matches[0] - 500
+	// Get context around the match (increase to 1000 chars before to be safe)
+	start := matches[0] - 1000
 	if start < 0 {
 		start = 0
 	}
 	contextBefore := htmlContent[start:matches[0]]
 
-	// Look for publishedOn in the context before
-	datePattern := `"publishedOn":"(\d{4}-\d{2}-\d{2})"`
+	// Look for publishedOn in the context before (try escaped first)
+	datePattern := `\\"publishedOn\\":\\"(\d{4}-\d{2}-\d{2})\\"`
 	dateRegex := regexp.MustCompile(datePattern)
 	dateMatches := dateRegex.FindStringSubmatch(contextBefore)
+
+	if len(dateMatches) > 1 {
+		// Parse the date
+		t, err := time.Parse("2006-01-02", dateMatches[1])
+		if err == nil {
+			return t
+		}
+	}
+
+	// Try unescaped as fallback
+	datePattern = `"publishedOn":"(\d{4}-\d{2}-\d{2})"`
+	dateRegex = regexp.MustCompile(datePattern)
+	dateMatches = dateRegex.FindStringSubmatch(contextBefore)
 
 	if len(dateMatches) > 1 {
 		// Parse the date
