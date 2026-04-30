@@ -65,9 +65,6 @@ func main() {
 	router.Use(middleware.AccessControl())
 	router.Use(middleware.Header())
 	router.Use(middleware.Parameter())
-	if cacheInstance != nil {
-		router.Use(middleware.Cache(cacheInstance))
-	}
 	router.Use(middleware.Template())
 
 	// Built-in routes
@@ -75,8 +72,14 @@ func main() {
 	router.GET("/healthz", healthzHandler)
 	router.GET("/robots.txt", robotsHandler)
 
-	// Mount all registered routes
-	registry.MountRoutes(router)
+	// Mount all registered routes. Caching is layered around each route
+	// handler so we cache parsed feed.Data (small, format-agnostic) rather
+	// than rendered XML (large, format-specific).
+	if cacheInstance != nil {
+		registry.MountRoutesWithWrapper(router, middleware.CachingHandlerWrapper(cacheInstance))
+	} else {
+		registry.MountRoutes(router)
+	}
 
 	// Start server
 	addr := fmt.Sprintf(":%d", cfg.Connect.Port)

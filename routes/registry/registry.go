@@ -82,12 +82,29 @@ func (r *Registry) RegisterRoute(namespaceName string, route Route) {
 	ns.Routes = append(ns.Routes, route)
 }
 
-// MountRoutes mounts all registered routes to the Gin router
+// HandlerWrapper turns a RouteHandler into a gin.HandlerFunc. The default
+// wrapper invokes the handler and stores the result in the gin context for
+// downstream middleware. Callers (e.g. main) may swap in a wrapper that adds
+// caching, instrumentation, etc.
+type HandlerWrapper func(RouteHandler) gin.HandlerFunc
+
+// MountRoutes mounts all registered routes to the Gin router using the default
+// handler wrapper.
 func (r *Registry) MountRoutes(router *gin.Engine) {
+	r.MountRoutesWithWrapper(router, wrapHandler)
+}
+
+// MountRoutesWithWrapper mounts all registered routes using a custom handler
+// wrapper. Useful for layering caching or other concerns around the handler
+// without changing route definitions.
+func (r *Registry) MountRoutesWithWrapper(router *gin.Engine, wrap HandlerWrapper) {
+	if wrap == nil {
+		wrap = wrapHandler
+	}
 	for namespaceName, namespace := range r.namespaces {
 		for _, route := range namespace.Routes {
 			path := "/" + namespaceName + route.Path
-			router.GET(path, wrapHandler(route.Handler))
+			router.GET(path, wrap(route.Handler))
 		}
 	}
 }
@@ -134,6 +151,12 @@ func RegisterRoute(namespaceName string, route Route) {
 // MountRoutes mounts all routes from the default registry
 func MountRoutes(router *gin.Engine) {
 	DefaultRegistry.MountRoutes(router)
+}
+
+// MountRoutesWithWrapper mounts all routes from the default registry using a
+// custom handler wrapper.
+func MountRoutesWithWrapper(router *gin.Engine, wrap HandlerWrapper) {
+	DefaultRegistry.MountRoutesWithWrapper(router, wrap)
 }
 
 // GetAllRoutes returns a flat list of all routes with their full paths

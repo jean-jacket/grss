@@ -1,110 +1,143 @@
 package middleware
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/gob"
 	"fmt"
+	"hash/fnv"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jean-jacket/grss/cache"
 	"github.com/jean-jacket/grss/config"
+	"github.com/jean-jacket/grss/feed"
+	"github.com/jean-jacket/grss/routes/registry"
 	"github.com/jean-jacket/grss/utils"
 	"golang.org/x/sync/singleflight"
 )
 
 var sf singleflight.Group
 
-// Cache middleware provides caching with request deduplication
-func Cache(c cache.Cache) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		// Skip caching if disabled
-		if config.C.Cache.Type == "" {
-			ctx.Next()
-			return
-		}
-
-		// Generate cache key
-		path := ctx.Request.URL.Path
-		format := ctx.DefaultQuery("format", "rss")
-		limit := ctx.Query("limit")
-		keyData := fmt.Sprintf("%s:%s:%s", path, format, limit)
-		cacheKey := fmt.Sprintf("grss:cache:%x", sha256.Sum256([]byte(keyData)))
-
-		// Try to get from cache
-		cached, err := c.Get(ctx.Request.Context(), cacheKey)
-		if err == nil && cached != "" {
-			// Cache hit
-			ctx.Header("GRSS-Cache-Status", "HIT")
-			ctx.Header("Content-Type", getContentType(format))
-			ctx.String(http.StatusOK, cached)
-			ctx.Abort()
-			return
-		}
-
-		// Cache miss - use singleflight to prevent thundering herd
-		result, err, _ := sf.Do(cacheKey, func() (interface{}, error) {
-			// Create a custom response writer to capture the response
-			writer := &responseWriter{
-				ResponseWriter: ctx.Writer,
-				body:           []byte{},
+// CachingHandlerWrapper returns a registry.HandlerWrapper that caches the
+// route handler's *feed.Data (gob-encoded) and serves matching requests
+// straight from cache. It also emits standard HTTP caching headers
+// (ETag + Cache-Control) and answers conditional requests with 304.
+//
+// Caching the parsed feed.Data — rather than the rendered XML — is much more
+// memory-efficient (one entry serves all output formats) and lets the
+// downstream Parameter/Template middlewares run normally.
+func CachingHandlerWrapper(c cache.Cache) registry.HandlerWrapper {
+	return func(handler registry.RouteHandler) gin.HandlerFunc {
+		return func(ctx *gin.Context) {
+			// If caching is disabled or no backend is configured, fall through.
+			if c == nil || config.C.Cache.Type == "" {
+				runUncached(ctx, handler)
+				return
 			}
-			ctx.Writer = writer
 
-			// Execute handler chain
-			ctx.Next()
+			key := cacheKey(ctx.Request.URL.Path)
 
-			// Get the response body
-			response := string(writer.body)
+			// Cache hit?
+			if cached, err := c.Get(ctx.Request.Context(), key); err == nil && cached != "" {
+				if data, ok := decodeFeed(cached); ok {
+					etag := computeETag(cached)
+					applyCacheHeaders(ctx, etag)
+					ctx.Header("GRSS-Cache-Status", "HIT")
+					if ctx.GetHeader("If-None-Match") == etag {
+						ctx.Status(http.StatusNotModified)
+						ctx.Abort()
+						return
+					}
+					ctx.Set("feed_data", data)
+					return
+				}
+				// Decode failure: fall through to regenerate.
+			}
 
-			// Cache the response if status is 200
-			if ctx.Writer.Status() == http.StatusOK && response != "" {
+			// Cache miss — coalesce concurrent fetches for the same key.
+			result, err, _ := sf.Do(key, func() (interface{}, error) {
+				data, err := handler(ctx)
+				if err != nil {
+					return nil, err
+				}
+				return data, nil
+			})
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, gin.H{
+					"error": gin.H{"message": err.Error()},
+				})
+				ctx.Abort()
+				return
+			}
+			data, _ := result.(*feed.Data)
+			if data == nil {
+				return
+			}
+
+			// Encode and store.
+			encoded, ok := encodeFeed(data)
+			if ok {
+				etag := computeETag(encoded)
+				applyCacheHeaders(ctx, etag)
+				ctx.Header("GRSS-Cache-Status", "MISS")
 				go func() {
-					bgCtx := context.Background()
-					err := c.Set(bgCtx, cacheKey, response, config.C.Cache.RouteExpire)
-					if err != nil {
-						utils.LogError("Failed to cache response: %v", err)
+					if err := c.Set(context.Background(), key, encoded, config.C.Cache.RouteExpire); err != nil {
+						utils.LogError("Failed to cache feed: %v", err)
 					}
 				}()
 			}
-
-			return response, nil
-		})
-
-		// If we got the result from singleflight, write it
-		if err == nil && result != nil {
-			response := result.(string)
-			if response != "" && ctx.Writer.Status() == http.StatusOK {
-				ctx.Header("GRSS-Cache-Status", "MISS")
-			}
+			ctx.Set("feed_data", data)
 		}
 	}
 }
 
-// responseWriter wraps gin.ResponseWriter to capture response body
-type responseWriter struct {
-	gin.ResponseWriter
-	body []byte
+// runUncached mirrors the default registry wrapHandler so behaviour is
+// identical when caching is disabled.
+func runUncached(ctx *gin.Context, handler registry.RouteHandler) {
+	data, err := handler(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error": gin.H{"message": err.Error()},
+		})
+		ctx.Abort()
+		return
+	}
+	ctx.Set("feed_data", data)
 }
 
-func (w *responseWriter) Write(data []byte) (int, error) {
-	w.body = append(w.body, data...)
-	return w.ResponseWriter.Write(data)
+func cacheKey(path string) string {
+	return fmt.Sprintf("grss:cache:v2:%x", sha256.Sum256([]byte(path)))
 }
 
-func (w *responseWriter) WriteString(s string) (int, error) {
-	w.body = append(w.body, []byte(s)...)
-	return w.ResponseWriter.WriteString(s)
+func encodeFeed(data *feed.Data) (string, bool) {
+	var buf bytes.Buffer
+	if err := gob.NewEncoder(&buf).Encode(data); err != nil {
+		utils.LogError("Failed to gob-encode feed: %v", err)
+		return "", false
+	}
+	return buf.String(), true
 }
 
-// getContentType returns the content type for a given format
-func getContentType(format string) string {
-	switch format {
-	case "atom":
-		return "application/atom+xml; charset=utf-8"
-	case "json":
-		return "application/json; charset=utf-8"
-	default:
-		return "application/rss+xml; charset=utf-8"
+func decodeFeed(encoded string) (*feed.Data, bool) {
+	var data feed.Data
+	if err := gob.NewDecoder(bytes.NewReader([]byte(encoded))).Decode(&data); err != nil {
+		return nil, false
+	}
+	return &data, true
+}
+
+func computeETag(payload string) string {
+	h := fnv.New64a()
+	h.Write([]byte(payload))
+	return fmt.Sprintf(`W/"%x"`, h.Sum64())
+}
+
+func applyCacheHeaders(ctx *gin.Context, etag string) {
+	ctx.Header("ETag", etag)
+	maxAge := int(config.C.Cache.RouteExpire.Seconds())
+	if maxAge > 0 {
+		ctx.Header("Cache-Control", fmt.Sprintf("public, max-age=%d", maxAge))
 	}
 }
