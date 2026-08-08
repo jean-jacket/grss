@@ -11,5 +11,6 @@ import (
 	_ "github.com/jean-jacket/grss/routes/apple"
 	_ "github.com/jean-jacket/grss/routes/example"
 	_ "github.com/jean-jacket/grss/routes/github"
+	_ "github.com/jean-jacket/grss/routes/wubby"
 	_ "github.com/jean-jacket/grss/routes/youtube"
 )
